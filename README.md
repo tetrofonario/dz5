@@ -10,7 +10,19 @@
 Описание/Пошаговая инструкция выполнения домашнего задания:
 1. Создать инстанс ВМ с 2 ядрами и 4 Гб ОЗУ и SSD 10GB
 Установить на него PostgreSQL 15 с дефолтными настройками
+````
+sergt@ubuntu1:~$ pg_lsclusters
+Ver Cluster Port Status Owner    Data directory              Log file
+15  main    5432 online postgres /var/lib/postgresql/15/main /var/log/postgresql/postgresql-15-main.log
+````
 2.  Создать БД для тестов: выполнить pgbench -i postgres
+```agsl
+sudo apt install postgresql-contrib
+
+
+postgres=# create database test5;
+CREATE DATABASE
+```
 3. Запустить pgbench -c8 -P 6 -T 60 -U postgres postgres
 4. Применить параметры настройки PostgreSQL из прикрепленного к материалам занятия файла
 5. Протестировать заново Что изменилось и почему?
