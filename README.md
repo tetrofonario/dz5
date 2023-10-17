@@ -128,37 +128,140 @@ __стало__ tps = 40.944575 (without initial connection time)<br>
 
 6. Создать таблицу с текстовым полем и заполнить случайными или сгенерированными данным в размере 1млн строк
 ```
+test5=# CREATE TABLE student( id serial, fio char(100) ) ;
+CREATE TABLE
+test5=# INSERT INTO   student(fio) SELECT 'noname' FROM generate_series(1,1000000);
+INSERT 0 1000000
 
 ```
     - Посмотреть размер файла с таблицей 
 ```
+test5=# SELECT pg_size_pretty(pg_total_relation_size('student'));
+ pg_size_pretty
+----------------
+ 135 MB
+(1 row)
 
 ```
     - 5 раз обновить все строчки и добавить к каждой строчке любой символ
 ```
-
+test5=# update student set fio = 'name';
+UPDATE 1000000
+test5=# update student set fio = 'name2';
+UPDATE 1000000
+test5=# update student set fio = 'name3';
+UPDATE 1000000
+test5=# update student set fio = 'name4';
+UPDATE 1000000
 ```
     - Посмотреть количество мертвых строчек в таблице и когда последний раз приходил автовакуум
 ```
+test5=# select c.relname,
+current_setting('autovacuum_vacuum_threshold') as av_base_thresh,
+current_setting('autovacuum_vacuum_scale_factor') as av_scale_factor,
+(current_setting('autovacuum_vacuum_threshold')::int +
+(current_setting('autovacuum_vacuum_scale_factor')::float * c.reltuples)) as av_thresh,
+s.n_dead_tup
+from pg_stat_user_tables s join pg_class c ON s.relname = c.relname
+where s.n_dead_tup > (current_setting('autovacuum_vacuum_threshold')::int
++ (current_setting('autovacuum_vacuum_scale_factor')::float * c.reltuples));
+ relname | av_base_thresh | av_scale_factor | av_thresh | n_dead_tup
+---------+----------------+-----------------+-----------+------------
+ student | 50             | 0.2             |    200050 |    3999824
+(1 row)
 
 ```
-    - Подождать некоторое время, проверяя, пришел ли автовакуум
+    - Подождать некоторое время, проверяя, пришел ли автовакуум <br>
+Пришел
 ```
-
+test5=# select c.relname,
+current_setting('autovacuum_vacuum_threshold') as av_base_thresh,
+current_setting('autovacuum_vacuum_scale_factor') as av_scale_factor,
+(current_setting('autovacuum_vacuum_threshold')::int +
+(current_setting('autovacuum_vacuum_scale_factor')::float * c.reltuples)) as av_thresh,
+s.n_dead_tup
+from pg_stat_user_tables s join pg_class c ON s.relname = c.relname
+where s.n_dead_tup > (current_setting('autovacuum_vacuum_threshold')::int
++ (current_setting('autovacuum_vacuum_scale_factor')::float * c.reltuples));
+ relname | av_base_thresh | av_scale_factor | av_thresh | n_dead_tup
+---------+----------------+-----------------+-----------+------------
+(0 rows)
 ```
     - 5 раз обновить все строчки и добавить к каждой строчке любой символ
 ```
+test5=# update student set fio = 'nameA';
+UPDATE 1000000
+test5=# update student set fio = 'nameB';
+UPDATE 1000000
+test5=# update student set fio = 'nameC';
+UPDATE 1000000
+test5=# update student set fio = 'nameD';
+UPDATE 1000000
+test5=# update student set fio = 'nameE';
+UPDATE 1000000
 
 ```
       Посмотреть размер файла с таблицей
 ```
+test5=# SELECT pg_size_pretty(pg_total_relation_size('student'));clear
+ pg_size_pretty
+----------------
+ 808 MB
+(1 row)
 
 ```
 7. Отключить Автовакуум на конкретной таблице
+```
+test5=# ALTER TABLE student SET (autovacuum_enabled = false);
+ALTER TABLE
+```
      - 10 раз обновить все строчки и добавить к каждой строчке любой символ
+```
+test5=# update student set fio = 'nameA1';
+UPDATE 1000000
+test5=# update student set fio = 'nameA2';
+UPDATE 1000000
+test5=# update student set fio = 'nameA3';
+UPDATE 1000000
+test5=# update student set fio = 'nameA4';
+UPDATE 1000000
+test5=# update student set fio = 'nameA5';
+UPDATE 1000000
+test5=# update student set fio = 'nameA6';
+UPDATE 1000000
+test5=# update student set fio = 'nameA7';
+UPDATE 1000000
+test5=# update student set fio = 'nameA8';
+UPDATE 1000000
+test5=# update student set fio = 'nameA9';
+UPDATE 1000000
+test5=# update student set fio = 'nameA10';
+UPDATE 1000000
+```
      - Посмотреть размер файла с таблицей
+```
+test5=# SELECT pg_size_pretty(pg_total_relation_size('student'));
+ pg_size_pretty
+----------------
+ 1482 MB
+(1 row)
+
+test5=# SELECT relname, n_live_tup, n_dead_tup, trunc(100*n_dead_tup/(n_live_tup+1))::float "ratio%", last_autovacuum FROM pg_stat_user_TABLEs WHERE relname = 'student';
+ relname | n_live_tup | n_dead_tup | ratio% |        last_autovacuum
+---------+------------+------------+--------+-------------------------------
+ student |    1666567 |    9998059 |    599 | 2023-10-17 22:31:43.165604+00
+(1 row)
+
+```
      - Объясните полученный результат
+Объяснение такое
+т.к. не был включен вакуум записи помеченнные как  удаленные не очищались и при следедущей вставке не могли быть испольованы<br>
+таким образом каждый апдейт увеливичевал количесто записей кратно начальному количеству.
      - Не забудьте включить автовакуум)
-8.      Задание со *:
+```
+test5=# ALTER TABLE student SET (autovacuum_enabled = true);                                                                                                ALTER TABLE
+
+```
+9. Задание со *:
       Написать анонимную процедуру, в которой в цикле 10 раз обновятся все строчки в искомой таблице.
       Не забыть вывести номер шага цикла.
